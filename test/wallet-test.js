@@ -2970,10 +2970,9 @@ describe('Wallet', function() {
     });
 
     it('should send and confirm BID', async () => {
-      const unsentBid = await wallet.createBid(name, value, lockup, {hardFee: fee, force: true});
       // Advance to bidding
       wdb.height += network.names.treeInterval + 1;
-      const winningBid = await wallet.sendMTX(unsentBid, null);
+      const winningBid = await wallet.sendBid(name, value, lockup, {hardFee: fee});
       uTXCount++;
 
       // Check
@@ -3069,10 +3068,9 @@ describe('Wallet', function() {
     });
 
     it('should send and confirm REDEEM', async () => {
-      const unsentRedeem = await wallet.createRedeem(name, {hardFee: fee, force:true});
       // Advance to close
       wdb.height += network.names.revealPeriod;
-      const redeem = await wallet.sendMTX(unsentRedeem, null);
+      const redeem = await wallet.sendRedeem(name, {hardFee: fee, force:true});
       uTXCount++;
 
       // // Check
