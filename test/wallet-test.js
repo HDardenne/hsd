@@ -2890,6 +2890,7 @@ describe('Wallet', function() {
     // Store height of auction OPEN to be used in second bid.
     // The main test wallet, and wallet that will receive the FINALIZE.
     let wallet;
+    let unsentReveal;
 
     // Hack required to focus test on txdb mechanics.
     // We don't otherwise need WalletDB or Blockchain
@@ -3000,8 +3001,12 @@ describe('Wallet', function() {
       assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
       assert.strictEqual(bal.ulocked, lockup);
       assert.strictEqual(bal.clocked, lockup);
+      
+      const auctionsTxs = await wallet.createAuctionTxs(name, secondHighest, lockup, {hardFee: fee, force:true});
+      const losingBidUnsent = auctionsTxs.bid;
+      unsentReveal = auctionsTxs.reveal;
 
-      const losingBid = await wallet.sendBid(name, secondHighest, lockup, {hardFee: fee});
+      const losingBid = await wallet.sendMTX(losingBidUnsent, null);
       uTXCount++;
 
       // Check
@@ -3033,7 +3038,6 @@ describe('Wallet', function() {
     });
 
     it('should send and confirm REVEAL', async () => {
-      const unsentReveal = await wallet.createReveal(name, {hardFee: fee, force:true});
       // Advance to reveal
       wdb.height += network.names.biddingPeriod;
       const reveal = await wallet.sendMTX(unsentReveal, null);
@@ -3045,7 +3049,7 @@ describe('Wallet', function() {
       assert.strictEqual(bal.coin, 5);
       assert.strictEqual(bal.confirmed, fund - (cTXCount * fee));
       assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
-      assert.strictEqual(bal.ulocked, value + secondHighest);
+      assert.strictEqual(bal.ulocked, lockup + secondHighest);
       assert.strictEqual(bal.clocked, 2*lockup);
 
       // Confirm REVEAL
@@ -3063,6 +3067,27 @@ describe('Wallet', function() {
       assert.strictEqual(bal.coin, 5);
       assert.strictEqual(bal.confirmed, fund - (cTXCount * fee));
       assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
+      assert.strictEqual(bal.ulocked, lockup + secondHighest);
+      assert.strictEqual(bal.clocked, lockup + secondHighest);
+
+      const reveal2 = await wallet.sendReveal(name,  {hardFee: fee});
+      uTXCount++;
+
+      // Confirm REVEAL
+      const block2 = {
+        height: wdb.height + 1,
+        hash: Buffer.alloc(32),
+        time: Date.now()
+      };
+      await wallet.txdb.add(reveal2, block2);
+      cTXCount++;
+
+      // Check
+      bal = await wallet.getBalance();
+      assert.strictEqual(bal.tx, 6);
+      assert.strictEqual(bal.coin, 6);
+      assert.strictEqual(bal.confirmed, fund - (cTXCount * fee));
+      assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
       assert.strictEqual(bal.ulocked, value + secondHighest);
       assert.strictEqual(bal.clocked, value + secondHighest);
     });
@@ -3075,10 +3100,10 @@ describe('Wallet', function() {
 
       // // Check
       let bal = await wallet.getBalance();
-      assert.strictEqual(bal.tx, 6);
+      assert.strictEqual(bal.tx, 7);
       // Wallet coin count doesn't change:
       // REVEAL + fee money -> REDEEM + change
-      assert.strictEqual(bal.coin, 5);
+      assert.strictEqual(bal.coin, 6);
       assert.strictEqual(bal.confirmed, fund - (cTXCount * fee));
       assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
       assert.strictEqual(bal.ulocked, value);
@@ -3095,8 +3120,8 @@ describe('Wallet', function() {
 
       // Check
       bal = await wallet.getBalance();
-      assert.strictEqual(bal.tx, 6);
-      assert.strictEqual(bal.coin, 5);
+      assert.strictEqual(bal.tx, 7);
+      assert.strictEqual(bal.coin, 6);
       assert.strictEqual(bal.confirmed, fund - (cTXCount * fee));
       assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
       assert.strictEqual(bal.ulocked, value);
@@ -3110,10 +3135,10 @@ describe('Wallet', function() {
 
       // Check
       let bal = await wallet.getBalance();
-      assert.strictEqual(bal.tx, 7);
+      assert.strictEqual(bal.tx, 8);
       // Wallet coin count doesn't change:
       // REVEAL + fee money -> REGISTER + change
-      assert.strictEqual(bal.coin, 5);
+      assert.strictEqual(bal.coin, 6);
       assert.strictEqual(bal.confirmed, fund - (cTXCount * fee));
       assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
       assert.strictEqual(bal.ulocked, secondHighest);
@@ -3130,8 +3155,8 @@ describe('Wallet', function() {
 
       // Check
       bal = await wallet.getBalance();
-      assert.strictEqual(bal.tx, 7);
-      assert.strictEqual(bal.coin, 5);
+      assert.strictEqual(bal.tx, 8);
+      assert.strictEqual(bal.coin, 6);
       assert.strictEqual(bal.confirmed, fund - (cTXCount * fee));
       assert.strictEqual(bal.unconfirmed, fund - (uTXCount * fee));
       assert.strictEqual(bal.ulocked, secondHighest);
